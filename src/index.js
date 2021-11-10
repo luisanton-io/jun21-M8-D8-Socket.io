@@ -70,7 +70,8 @@ io.on("connection", (socket) => {
                 $push: { chatHistory: message }
             })
 
-        socket.broadcast.emit("message", message)
+        // socket.broadcast.emit("message", message)
+        socket.to(room).emit("message", message)
 
 
         // } catch (error) {
