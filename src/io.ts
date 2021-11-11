@@ -1,32 +1,8 @@
-import express from "express";
-import cors from "cors"
 import { createServer } from "http";
 import { Server } from "socket.io";
-import mongoose from "mongoose";
-import { RoomModel } from "./rooms/model.js";
-
-let onlineUsers = []
-
-// Create our Express application
-const app = express();
-// Configure our express application with middlewares and routes and all of that...
-app.use(cors())
-app.use(express.json())
-
-app.get('/online-users', (req, res) => {
-    res.send({ onlineUsers })
-})
-
-app.get('/chat/:room', async (req, res) => {
-    const room = await RoomModel.findOne({ name: req.params.room })
-
-    if (!room) {
-        res.status(404).send()
-        return
-    }
-
-    res.send(room.chatHistory)
-})
+import { app } from "./app";
+import { RoomModel } from "./rooms/model";
+import { shared } from "./shared";
 
 // Create a standard NodeJS httpServer based on our express application
 const httpServer = createServer(app);
@@ -41,7 +17,7 @@ io.on("connection", (socket) => {
         // With this username:
         // we can now save the username in a list of online users
 
-        onlineUsers.push({ username, id: socket.id, room })
+        shared.onlineUsers.push({ username, socketId: socket.id, room })
 
         socket.join(room)
 
@@ -52,7 +28,7 @@ io.on("connection", (socket) => {
         socket.broadcast.emit("newConnection")
 
         // this is how you emit an event to EVERY client, including this one
-        //io.sockets.emit("someevent")
+        // io.sockets.emit("someevent")
     })
 
     socket.on("sendmessage", async ({ message, room }) => {
@@ -83,7 +59,7 @@ io.on("connection", (socket) => {
     socket.on("disconnect", () => {
         console.log("disconnected socket " + socket.id)
 
-        onlineUsers = onlineUsers.filter(user => user.id !== socket.id)
+        shared.onlineUsers = shared.onlineUsers.filter(user => user.socketId !== socket.id)
     })
 
 });
@@ -95,11 +71,4 @@ io.on("connection", (socket) => {
 // unrelated to the one we have passed to the io Server Configure
 // tldr: will not work
 
-if (!process.env.MONGO_URL) {
-    throw new Error("No MongoDB uri defined")
-}
-
-mongoose.connect(process.env.MONGO_URL).then(() => {
-    console.log("connected to mongo")
-    httpServer.listen(3030);
-})
+export { httpServer };
